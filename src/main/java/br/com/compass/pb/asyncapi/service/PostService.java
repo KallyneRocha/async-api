@@ -33,6 +33,12 @@ public class PostService {
         this.messageProducerService = messageProducerService;
     }
 
+    public Post getPostById(Long id) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException());
+        return post;
+    }
+
     public Post processPost(Long postId) {
 
         if (postId >= 1 && postId <= 100 && !postRepository.existsById(postId)) {
@@ -131,6 +137,7 @@ public class PostService {
 
         return CompletePosts;
     }
+
 }
 
 
