@@ -1,3 +1,4 @@
+
 package br.com.compass.pb.asyncapi.service;
 
 import br.com.compass.pb.asyncapi.entity.Post;
@@ -34,11 +35,22 @@ public class HistoryService {
         List<History> historyEntries = historyRepository.findHistoryByPostId(post.getId());
 
         if (!historyEntries.isEmpty()) {
-            History latestHistoryEntry = historyEntries.get(0);
+            History latestHistoryEntry = historyEntries.get(historyEntries.size() -1);
             return latestHistoryEntry.getStatus() == state;
         }
 
         return false;
     }
+
+    public void deleteHistory(Long postId) {
+
+        List<History> historyEntries = historyRepository.findHistoryByPostId(postId);
+
+        if (!historyEntries.isEmpty()) {
+            historyEntries = historyEntries.subList(1, (int)historyRepository.count());
+            historyRepository.deleteAll(historyEntries);
+        }
+    }
 }
+
 

@@ -6,11 +6,13 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(value= "api-consumer", url= "https://jsonplaceholder.typicode.com")
+import java.util.List;
+
+@FeignClient(name= "api-consumer", url= "https://jsonplaceholder.typicode.com/posts")
 public interface ApiConsumerFeign {
     @GetMapping(value= "/{id}")
     Post getPostById(@PathVariable("id") Long id);
 
     @GetMapping(value= "/{id}/comments")
-    <List>Comment getCommentById(@PathVariable("id") Long id);
+    List<Comment> getCommentByPostId(@PathVariable("id") Long id);
 }

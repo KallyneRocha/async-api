@@ -21,6 +21,12 @@ public class CommentService {
         return commentRepository.findByPostId(postId);
     }
 
-    public void saveComments(List<Comment> comments, Long postId) {
+    public void saveComments(List<Comment> comments) {
+        commentRepository.saveAll(comments);
+    }
+
+    public void deleteComments(Long postId) {
+        List<Comment> commments = commentRepository.findByPostId(postId);
+        commentRepository.deleteAll(commments);
     }
 }

@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Entity
 public class History {
 
@@ -17,50 +19,51 @@ public class History {
 
     private PostState status;
 
+    @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "post_id")
     private Post post;
 
     public History() {
-            this.date = LocalDateTime.now();
+        this.date = LocalDateTime.now();
     }
 
     public History(PostState status, Post post) {
-            this.date = LocalDateTime.now();
-            this.status = status;
-            this.post = post;
+        this.date = LocalDateTime.now();
+        this.status = status;
+        this.post = post;
     }
 
     public Long getId() {
-            return id;
+        return id;
     }
 
     public void setId(Long id) {
-            this.id = id;
+        this.id = id;
     }
 
     public LocalDateTime getDate() {
-            return date;
+        return date;
     }
 
     public void setDate(LocalDateTime date) {
-            this.date = date;
+        this.date = date;
     }
 
     public PostState getStatus() {
-            return status;
+        return status;
     }
 
     public void setStatus(PostState status) {
-            this.status = status;
+        this.status = status;
     }
 
     public Post getPost() {
-            return post;
+        return post;
     }
 
     public void setPost(Post post) {
-            this.post = post;
+        this.post = post;
     }
 
 }

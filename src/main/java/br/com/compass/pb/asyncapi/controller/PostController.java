@@ -15,64 +15,47 @@ import java.util.List;
 @RequestMapping("/posts")
 public class PostController {
 
-    @Autowired
+
     private final PostService postService;
     private final MessageProducerService messageProducerService;
 
+    @Autowired
     public PostController(PostService postService, MessageProducerService messageProducerService) {
         this.postService = postService;
         this.messageProducerService = messageProducerService;
     }
 
+    //PROCESS POST
+    @PostMapping("/{postId}")
+    public ResponseEntity<String> processPost(@PathVariable Long postId) {
+        postService.processPost(postId);
+        return ResponseEntity.ok("Post processing succeed.");
+    }
+    //DISABLE POST
+    @DeleteMapping("/{postId}")
+    public ResponseEntity disablePost(@PathVariable Long postId) {
+        postService.disablePost(postId);
+        return ResponseEntity.ok("Post disabling succeed.");
+    }
+    //REPROCESS POST
+    @PutMapping("/{postId}")
+    public ResponseEntity reprocessPost(@PathVariable Long postId) {
+        postService.reprocessPost(postId);
+        return ResponseEntity.ok("Post reprocessing succeed.");
+    }
+    //QUERY POSTS
     @GetMapping
     public ApiResponse queryPosts() {
-        try {
-            List<Post> posts = postService.queryPosts();
-            return ApiResponse.success(posts, "Posts retrieved successfully.");
-        } catch (Exception e) {
-            return ApiResponse.error("Error querying posts: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        List<Post> posts = postService.queryPosts();
+        return ApiResponse.success(posts, "Posts retrieved successfully.");
     }
+
+
 
     @GetMapping("/{id}")
-    public ResponseEntity<String> getPostById(@PathVariable Long id) {
-        try {
-            Post post = postService.getPostById(id);
-            return ResponseEntity.ok(String.valueOf(post));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Post not found with id:" + id);
-        }
-    }
-
-    @PostMapping("/{postId}")
-    public ApiResponse processPost(@PathVariable Long postId) {
-        try {
-            postService.processPost(postId);
-            return ApiResponse.success(null, "Post processing initiated.");
-        } catch (Exception e) {
-            return ApiResponse.error("Error processing post: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-
-
-    @DeleteMapping("/{postId}")
-    public ApiResponse disablePost(@PathVariable("id") Long postId) {
-        try {
-            postService.disablePost(postId);
-            return ApiResponse.success(null, "Post disabling initiated.");
-        } catch (Exception e) {
-            return ApiResponse.error("Error disabling post: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    @PutMapping("/{postId}")
-    public ApiResponse reprocessPost(@PathVariable Long postId) {
-        try {
-            postService.reprocessPost(postId);
-            return ApiResponse.success(null, "Post reprocessing initiated.");
-        } catch (Exception e) {
-            return ApiResponse.error("Error reprocessing post: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    public ResponseEntity<Post> getPostById(@PathVariable Long id) {
+        Post post = postService.getPostById(id);
+        return ResponseEntity.ok(post);
     }
 
 }
