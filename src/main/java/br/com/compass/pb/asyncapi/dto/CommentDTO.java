@@ -1,13 +1,13 @@
 package br.com.compass.pb.asyncapi.dto;
 
-public class PostDTO {
+public class CommentDTO {
     private long id;
-    private String title;
+    private long postId;
     private String body;
 
-    public PostDTO(long id, String title, String body) {
+    public CommentDTO(long id, long postId, String body) {
         this.id = id;
-        this.title = title;
+        this.postId = postId;
         this.body = body;
     }
 
@@ -19,12 +19,12 @@ public class PostDTO {
         this.id = id;
     }
 
-    public String getTitle() {
-        return title;
+    public long getPostId() {
+        return postId;
     }
 
-    public void setTitle(String title) {
-        this.title = title;
+    public void setPostId(long postId) {
+        this.postId = postId;
     }
 
     public String getBody() {

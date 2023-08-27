@@ -9,7 +9,6 @@ import java.util.List;
 public class Post {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String title;
@@ -25,7 +24,8 @@ public class Post {
     public Post() {
     }
 
-    public Post(String title, String body) {
+    public Post(Long id, String title, String body) {
+        this.id = id;
         this.title = title;
         this.body = body;
     }

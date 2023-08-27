@@ -13,12 +13,10 @@ public class History {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     @Temporal(TemporalType.TIMESTAMP)
     private LocalDateTime date;
-
-    private PostState status;
-
+    @Enumerated(EnumType.STRING)
+    private PostState state;
     @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "post_id")
@@ -28,9 +26,9 @@ public class History {
         this.date = LocalDateTime.now();
     }
 
-    public History(PostState status, Post post) {
+    public History(PostState state, Post post) {
         this.date = LocalDateTime.now();
-        this.status = status;
+        this.state = state;
         this.post = post;
     }
 
@@ -50,12 +48,12 @@ public class History {
         this.date = date;
     }
 
-    public PostState getStatus() {
-        return status;
+    public PostState getState() {
+        return state;
     }
 
-    public void setStatus(PostState status) {
-        this.status = status;
+    public void setState(PostState state) {
+        this.state = state;
     }
 
     public Post getPost() {

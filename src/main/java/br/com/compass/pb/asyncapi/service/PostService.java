@@ -1,14 +1,23 @@
 package br.com.compass.pb.asyncapi.service;
 
 import br.com.compass.pb.asyncapi.client.ApiConsumerFeign;
+import br.com.compass.pb.asyncapi.dto.CommentDTO;
+import br.com.compass.pb.asyncapi.dto.HistoryDTO;
+import br.com.compass.pb.asyncapi.dto.PostCompleteDTO;
+import br.com.compass.pb.asyncapi.dto.PostDTO;
 import br.com.compass.pb.asyncapi.entity.Comment;
 import br.com.compass.pb.asyncapi.entity.History;
 import br.com.compass.pb.asyncapi.entity.Post;
 import br.com.compass.pb.asyncapi.enums.PostState;
 import br.com.compass.pb.asyncapi.exception.InvalidPostStateException;
+import br.com.compass.pb.asyncapi.queues.MessageProducer;
+import br.com.compass.pb.asyncapi.repository.CommentRepository;
+import br.com.compass.pb.asyncapi.repository.HistoryRepository;
 import br.com.compass.pb.asyncapi.repository.PostRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -18,229 +27,156 @@ import java.util.List;
 public class PostService {
     private final ApiConsumerFeign apiConsumerFeign;
     private final PostRepository postRepository;
+    private final CommentRepository commentRepository;
     private final CommentService commentService;
+    private final HistoryRepository historyRepository;
     private final HistoryService historyService;
-    private final MessageProducerService messageProducerService;
+    private final MessageProducer messageProducer;
 
     @Autowired
-    public PostService(ApiConsumerFeign apiConsumerFeign, PostRepository postRepository, CommentService commentService,
-                       HistoryService historyService, MessageProducerService messageProducerService) {
+    public PostService(ApiConsumerFeign apiConsumerFeign, PostRepository postRepository, CommentRepository commentRepository, CommentService commentService,
+                       HistoryRepository historyRepository, HistoryService historyService, MessageProducer messageProducer) {
         this.apiConsumerFeign = apiConsumerFeign;
         this.postRepository = postRepository;
+        this.commentRepository = commentRepository;
         this.commentService = commentService;
+        this.historyRepository = historyRepository;
         this.historyService = historyService;
-        this.messageProducerService = messageProducerService;
+        this.messageProducer = messageProducer;
     }
 
-    public Post getPostById(Long id) {
-        Post post = apiConsumerFeign.getPostById(id);
-        //.orElseThrow(() -> new EntityNotFoundException());
-        return post;
-    }
-
-    public Post processPost(Long postId) {
-        //o process post precisa criar o post vazio com historico, pegar conteudo do post da api,
-        // juntar com os comentarios e salvar no banco h2
-
-        //criar post vazio e setar created
-        Post post = new Post();
-        post.setId(postId);
+    //PROCESS - POST
+    public void createPost(Long postId){
+        validatePostId(postId);
+        validatePostIsNotDuplicated(postId);
+        Post post = new Post(postId, "","");
         postRepository.save(post);
         // CREATED
-        historyService.addHistoryEntry(post, PostState.CREATED);
-
-        // POST_FIND (enviar primeira msg)
-        historyService.addHistoryEntry(post, PostState.POST_FIND);
-        Post postDTO = apiConsumerFeign.getPostById(postId);
-
-        boolean postFound;
-        if (postDTO != null) {
-            postFound = postDTO.getId().equals(postId);
-        }else {
-            postFound = false;
+        historyService.addHistoryEntry(postId, PostState.CREATED);
+        messageProducer.sendMessage("POST_FIND", postId);
+    }
+    @Async
+    public void findPost(Long postId){
+        // POST_FIND
+        historyService.addHistoryEntry(postId, PostState.POST_FIND);
+        try {
+            PostDTO postDTO = apiConsumerFeign.getPostById(postId);
+            Post post = new Post(postDTO.getId(), postDTO.getTitle(), postDTO.getBody());
+            postRepository.save(post);
+            postOk(postId);
+        } catch (Exception exception) {
+            postFailed(postId);
         }
 
-        if (postFound){
-            //POST_OK
-            historyService.addHistoryEntry(post, PostState.POST_OK);
-
-            post.setTitle(postDTO.getTitle());
-            post.setBody(postDTO.getBody());
-            postRepository.save(post);
-
-            //COMMENTS_FIND (mandar msg)
-            historyService.addHistoryEntry(post, PostState.COMMENTS_FIND);
-            List<Comment> comments = apiConsumerFeign.getCommentByPostId(postId);
-
-            if (!comments.isEmpty()) {
-                //COMMENTS_OK
-                historyService.addHistoryEntry(post, PostState.COMMENTS_OK);
-
-
-                commentService.saveComments(comments);
-
-                //ENABLED
-                historyService.addHistoryEntry(post, PostState.ENABLED);
-                return post;
-            } else {
-                // if comments not found
-                historyService.addHistoryEntry(post, PostState.FAILED);
-                messageProducerService.sendMessageForPostFailed(postId);
-            }
-        }else {
-            // if post not found
-            historyService.addHistoryEntry(post, PostState.FAILED);
-            messageProducerService.sendMessageForPostFailed(postId);
-        }
-
-        historyService.addHistoryEntry(post, PostState.DISABLED);
-        return post;
-
-       /* if (postId >= 1 && postId <= 100 && !postRepository.existsById(postId)) {
-            Post post = new Post();
-            post.setId(postId);
-            postRepository.save(post);
-            // CREATED
-            historyService.addHistoryEntry(post, PostState.CREATED);
-            // POST_FIND
-            historyService.addHistoryEntry(post, PostState.POST_FIND);
-
-            boolean postFound = checkIfPostIsFound(postId);
-            if (postFound) {
-                //POST_OK
-                historyService.addHistoryEntry(post, PostState.POST_OK);
-                //COMMENTS_FIND
-                historyService.addHistoryEntry(post, PostState.COMMENTS_FIND);
-                //mudar pra metodo da api
-                List<Comment> comments = commentService.getCommentsByPostId(postId);
-
-                if (!comments.isEmpty()) {
-                    //COMMENTS_OK
-                    historyService.addHistoryEntry(post, PostState.COMMENTS_OK);
-                    //ENABLED
-                    historyService.addHistoryEntry(post, PostState.ENABLED);
-                    post.setHistory(historyService.getHistoryByPostId(postId));
-                    post.setComments(comments);
-                    return post;
-                } else {
-                    // if comments not found
-                    historyService.addHistoryEntry(post, PostState.FAILED);
-                    messageProducerService.sendMessageForPostFailed(postId);
-                }
-            } else {
-                // if post not found
-                historyService.addHistoryEntry(post, PostState.FAILED);
-                messageProducerService.sendMessageForPostFailed(postId);
-            }
-        } else {
-            messageProducerService.sendMessageForPostFailed(postId);
-        }*/
     }
 
-    public void disablePost(Long postId) {
-        Post post = postRepository.findById(postId).orElseThrow(() -> new EntityNotFoundException("Post not found with ID: " + postId));
+    public void postOk(Long postId){
+        // POST_OK
+        historyService.addHistoryEntry(postId, PostState.POST_OK);
+        messageProducer.sendMessage("COMMENTS_FIND", postId);
+    }
 
-        if (!historyService.isPostInState(post, PostState.ENABLED)) {
+    public void findComments(Long postId){
+        // COMMENTS_FIND
+        historyService.addHistoryEntry(postId, PostState.COMMENTS_FIND);
+        try {
+            Post post = postRepository.findById(postId).orElse(null);
+            List<CommentDTO> comments = commentService.getCommentsByPostId(postId);
+            commentService.saveComments(comments, post);
+            commentsOk(postId);
+        } catch (Exception exception) {
+            postFailed(postId);
+        }
+    }
+
+    public void commentsOk(Long postId){
+        //COMMENTS_OK
+        historyService.addHistoryEntry(postId, PostState.COMMENTS_OK);
+        enablePost(postId);
+    }
+
+    public void enablePost(Long postId){
+        // ENABLED
+        historyService.addHistoryEntry(postId, PostState.ENABLED);
+    }
+
+    public void postFailed(Long postId){
+        // FAILED
+        historyService.addHistoryEntry(postId, PostState.FAILED);
+        // DISABLED
+        historyService.addHistoryEntry(postId, PostState.DISABLED);
+    }
+
+    //DISABLE - DELETE
+    public void disablePost(Long postId) {
+        validatePostId(postId);
+        validatePostExists(postId);
+        if (!historyService.isPostInState(postId, PostState.ENABLED)) {
             throw new InvalidPostStateException("Post with ID " + postId + " is not in the ENABLED state.");
         }
-
-        historyService.addHistoryEntry(post, PostState.DISABLED);
-
-        //messageProducerService.sendMessageForPostDisabling(post.getId());
+        //DISABLED
+        historyService.addHistoryEntry(postId, PostState.DISABLED);
     }
 
+    //REPROCESS - PUT
     public void reprocessPost(Long postId) {
-        Post post = postRepository.findById(postId).orElseThrow(() -> new EntityNotFoundException("Post not found with ID: " + postId));
-
-        if (!historyService.isPostInState(post, PostState.DISABLED) && !historyService.isPostInState(post, PostState.ENABLED)) {
+        validatePostId(postId);
+        validatePostExists(postId);
+        if (!historyService.isPostInState(postId, PostState.DISABLED) && !historyService.isPostInState(postId, PostState.ENABLED)) {
             throw new InvalidPostStateException("Post with ID " + postId + " is not in the ENABLED or DISABLED state.");
         }
-        //UPDATING
-        historyService.addHistoryEntry(post, PostState.UPDATING);
-        reprocessingPost(postId);
+        // UPDATING
+        historyService.addHistoryEntry(postId, PostState.UPDATING);
+        messageProducer.sendMessage("POST_FIND", postId);
     }
 
-    public Post reprocessingPost(Long postId) {
-        //o process post precisa criar o post vazio com historico, pegar conteudo do post da api,
-        // juntar com os comentarios e salvar no banco h2
-
-        //criar post vazio e setar created
-
-        Post post = new Post();
-        post.setId(postId);
-
-        //deletar History
-        historyService.deleteHistory(postId);
-        //deletar Comments
-        commentService.deleteComments(postId);
-
-        // POST_FIND (enviar primeira msg)
-        historyService.addHistoryEntry(post, PostState.POST_FIND);
-        Post postDTO = apiConsumerFeign.getPostById(postId);
-
-        boolean postFound;
-        if (postDTO != null) {
-            postFound = postDTO.getId().equals(postId);
-        }else {
-            postFound = false;
-        }
-
-        if (postFound){
-            //POST_OK
-            historyService.addHistoryEntry(post, PostState.POST_OK);
-
-            post.setTitle(postDTO.getTitle());
-            post.setBody(postDTO.getBody());
-            postRepository.save(post);
-
-            //COMMENTS_FIND (mandar msg)
-            historyService.addHistoryEntry(post, PostState.COMMENTS_FIND);
-            List<Comment> comments = apiConsumerFeign.getCommentByPostId(postId);
-
-            if (!comments.isEmpty()) {
-                //COMMENTS_OK
-                historyService.addHistoryEntry(post, PostState.COMMENTS_OK);
-
-                commentService.saveComments(comments);
-
-                //ENABLED
-                historyService.addHistoryEntry(post, PostState.ENABLED);
-                return post;
-            } else {
-                // if comments not found
-                historyService.addHistoryEntry(post, PostState.FAILED);
-                messageProducerService.sendMessageForPostFailed(postId);
-            }
-        }else {
-            // if post not found
-            historyService.addHistoryEntry(post, PostState.FAILED);
-            messageProducerService.sendMessageForPostFailed(postId);
-        }
-
-        historyService.addHistoryEntry(post, PostState.DISABLED);
-        return post;
-    }
-
-    public List<Post> queryPosts() {
-        List<Post> CompletePosts = new ArrayList<>();
+    //QUERY - GET
+    public List<PostCompleteDTO> queryPosts() {
         List<Post> posts = postRepository.findAll();
+        List<PostCompleteDTO> result = new ArrayList<>();
 
         for (Post post : posts) {
-            List<Comment> comments = commentService.getCommentsByPostId(post.getId());
-            List<History> history = historyService.getHistoryByPostId(post.getId());
+            List<Comment> comments = commentRepository.findByPostId(post.getId());
+            List<CommentDTO> commentDTOs = new ArrayList<>();
+            for (Comment comment : comments) {
+                commentDTOs.add(new CommentDTO(comment.getId(), post.getId(), comment.getBody()));
+            }
 
-            Post postComplete = new Post();
-            postComplete.setId(post.getId());
-            postComplete.setTitle(post.getTitle());
-            postComplete.setBody(post.getBody());
-            postComplete.setComments(comments);
-            postComplete.setHistory(history);
+            List<History> historyList = historyRepository.findHistoryByPostId(post.getId());
+            List<HistoryDTO> historyDTOs = new ArrayList<>();
+            for (History history : historyList) {
+                Long historyId = history.getId() != null ? history.getId() : 0L;
+                historyDTOs.add(new HistoryDTO(historyId, post.getId(), history.getDate(), history.getState()));
+            }
 
-            CompletePosts.add(postComplete);
+            result.add(new PostCompleteDTO(post.getId(), post.getTitle(), post.getBody(), commentDTOs, historyDTOs));
         }
 
-        return CompletePosts;
+        return result;
     }
+
+    // ID VALIDATION METHODS
+    private void validatePostId(long id) {
+        boolean validId = id >= 1 && id <= 100;
+        if (!validId) {
+            throw new IllegalArgumentException("Id must be a number between 1 and 100");
+        }
+    }
+
+    private void validatePostIsNotDuplicated(long id) {
+        boolean exists = postRepository.existsById(id);
+        if (exists) {
+            throw new DataIntegrityViolationException("A post with id= " + id + " already exists");
+        }
+    }
+
+    private void validatePostExists(long id) {
+        boolean exists = postRepository.existsById(id);
+        if (!exists) {
+            throw new EntityNotFoundException("Post not found with id:" + id);
+        }
+    }
+
 
 }
 
