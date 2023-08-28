@@ -156,21 +156,21 @@ public class PostService {
     }
 
     // ID VALIDATION METHODS
-    private void validatePostId(long id) {
+    void validatePostId(long id) {
         boolean validId = id >= 1 && id <= 100;
         if (!validId) {
             throw new IllegalArgumentException("Id must be a number between 1 and 100");
         }
     }
 
-    private void validatePostIsNotDuplicated(long id) {
+    void validatePostIsNotDuplicated(long id) {
         boolean exists = postRepository.existsById(id);
         if (exists) {
             throw new DataIntegrityViolationException("A post with id= " + id + " already exists");
         }
     }
 
-    private void validatePostExists(long id) {
+    void validatePostExists(long id) {
         boolean exists = postRepository.existsById(id);
         if (!exists) {
             throw new EntityNotFoundException("Post not found with id:" + id);

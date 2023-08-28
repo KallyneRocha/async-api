@@ -4,7 +4,6 @@ import br.com.compass.pb.asyncapi.dto.PostCompleteDTO;
 import br.com.compass.pb.asyncapi.entity.Post;
 import br.com.compass.pb.asyncapi.queues.MessageProducer;
 import br.com.compass.pb.asyncapi.service.PostService;
-import br.com.compass.pb.asyncapi.utils.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -43,9 +42,9 @@ public class PostController {
     }
 
     @GetMapping
-    public ApiResponse queryPosts() {
+    public ResponseEntity queryPosts() {
         List<PostCompleteDTO> posts = postService.queryPosts();
-        return ApiResponse.success(posts, "Posts retrieved successfully.");
+        return ResponseEntity.ok(posts);
     }
 
 }
