@@ -1,5 +1,8 @@
 package br.com.compass.pb.asyncapi.service;
 
+import br.com.compass.pb.asyncapi.entity.Post;
+import br.com.compass.pb.asyncapi.enums.PostState;
+import br.com.compass.pb.asyncapi.queues.MessageProducer;
 import br.com.compass.pb.asyncapi.service.PostService;
 import br.com.compass.pb.asyncapi.repository.PostRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -20,10 +23,57 @@ public class PostServiceTest {
     private PostService postService;
     @Mock
     private PostRepository postRepository;
+    @Mock
+    private HistoryService historyService;
+    @Mock
+    private MessageProducer messageProducer;
+
+    private PostState postState;
 
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.initMocks(this);
+    }
+
+    @Test
+    @DisplayName("Should create post and send message")
+    public void testCreatePost() {
+        Long postId = 1L;
+
+        when(postRepository.existsById(postId)).thenReturn(false);
+
+        postService.createPost(postId);
+
+        verify(postRepository).save(any(Post.class));
+        verify(historyService).addHistoryEntry(eq(postId), eq(PostState.CREATED));
+        verify(messageProducer).sendMessage(eq("POST_FIND"), eq(postId));
+    }
+    @Test
+    @DisplayName("Should disable post")
+    public void testDisablePost() {
+        Long postId = 1L;
+
+        when(postRepository.existsById(postId)).thenReturn(true);
+        when(historyService.isPostInState(postId, PostState.ENABLED)).thenReturn(true);
+
+        postService.disablePost(postId);
+
+        verify(historyService).addHistoryEntry(eq(postId), eq(PostState.DISABLED));
+    }
+
+    @Test
+    @DisplayName("Should reprocess post and send message")
+    public void testReprocessPost() {
+        Long postId = 1L;
+
+        when(postRepository.existsById(postId)).thenReturn(true);
+        when(historyService.isPostInState(postId, PostState.DISABLED)).thenReturn(true);
+        when(historyService.isPostInState(postId, PostState.ENABLED)).thenReturn(false);
+
+        postService.reprocessPost(postId);
+
+        verify(historyService).addHistoryEntry(eq(postId), eq(PostState.UPDATING));
+        verify(messageProducer).sendMessage(eq("POST_FIND"), eq(postId));
     }
 
     @Test
