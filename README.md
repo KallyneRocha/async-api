@@ -35,7 +35,7 @@ You can test the project by running the service classes in the test folder.
 
 I would like to express my heartfelt gratitude to Compass UOL for their unwavering support throughout this challenging journey. Their encouragement and resources played a pivotal role in keeping me motivated and determined to overcome obstacles.
 
-I am also deeply grateful to my instructor for his continuous guidance and prompt assistance in addressing my questions and concerns. Their expertise and willingness to help have been invaluable in ensuring my understanding and progress.
+I am also deeply grateful to my instructor for his continuous guidance and prompt assistance in addressing my questions and concerns. His expertise and willingness to help have been invaluable in ensuring my understanding and progress.
 
 This project would not have been possible without the combined efforts of Compass UOL and my instructor. Thank you for believing in me and being an integral part of my learning experience.
 
