@@ -7,7 +7,6 @@ The AsyncAPI project is a Spring Boot application that showcases asynchronous pr
 - Java 17
 - Spring Boot 3.1.2
 - Spring Cloud 2022.0.4
-- Spring Boot Starter Actuator
 - Spring Boot Starter Data JPA
 - Spring Boot Starter Web
 - Spring Cloud Starter OpenFeign
